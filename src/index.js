@@ -165,6 +165,122 @@ function printTable(results, keyword) {
 }
 
 /**
+ * 결과를 HTML 리포트로 저장
+ */
+function saveHtmlReport(results, keyword, jsonPath) {
+  const now = new Date();
+  const htmlPath = jsonPath.replace('.json', '.html');
+  const top5 = results.slice(0, 5);
+
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가격 비교 - ${keyword}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, 'Malgun Gothic', sans-serif; background: #f0f2f5; color: #333; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px; border-radius: 16px; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header .meta { opacity: 0.85; font-size: 14px; }
+    .top5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .top5-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; overflow: hidden; }
+    .top5-card .rank { font-size: 28px; margin-bottom: 8px; }
+    .top5-card .site { font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; }
+    .top5-card .name { font-size: 14px; margin: 8px 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .top5-card .price { font-size: 22px; font-weight: 700; color: #e53e3e; }
+    .top5-card .shipping { font-size: 12px; color: #888; margin-top: 4px; }
+    .top5-card .dept { display: inline-block; background: #ebf8ff; color: #2b6cb0; font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-top: 8px; }
+    .top5-card a { display: inline-block; margin-top: 10px; font-size: 13px; color: #667eea; text-decoration: none; }
+    .top5-card a:hover { text-decoration: underline; }
+    .gold { border-top: 4px solid #FFD700; }
+    .silver { border-top: 4px solid #C0C0C0; }
+    .bronze { border-top: 4px solid #CD7F32; }
+    table { width: 100%; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-collapse: collapse; }
+    th { background: #667eea; color: white; padding: 14px 12px; text-align: left; font-size: 13px; font-weight: 600; }
+    td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    tr:hover { background: #f9fafb; }
+    tr.top5-row { background: #fffff0; }
+    .price-cell { font-weight: 700; color: #e53e3e; white-space: nowrap; }
+    .total-cell { font-weight: 700; white-space: nowrap; }
+    .free { color: #38a169; }
+    .dept-badge { background: #ebf8ff; color: #2b6cb0; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+    .link { color: #667eea; text-decoration: none; font-size: 12px; word-break: break-all; }
+    .link:hover { text-decoration: underline; }
+    .section-title { font-size: 18px; font-weight: 700; margin: 24px 0 16px; }
+    .footer { text-align: center; color: #999; font-size: 12px; margin-top: 24px; padding: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛒 가격 비교 결과</h1>
+      <div class="meta">
+        검색어: <strong>${keyword}</strong><br>
+        ${now.toLocaleString('ko-KR')} · 총 ${results.length}개 상품 수집
+      </div>
+    </div>
+
+    <div class="section-title">🏆 최저가 TOP 5</div>
+    <div class="top5">
+      ${top5.map((item, i) => {
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        const borders = ['gold', 'silver', 'bronze', '', ''];
+        const total = (item.price + item.shipping).toLocaleString();
+        const ship = item.shipping === 0 ? '무료배송' : `배송비 ${item.shipping.toLocaleString()}원`;
+        return `
+      <div class="top5-card ${borders[i]}">
+        <div class="rank">${medals[i]}</div>
+        <div class="site">${item.site}</div>
+        <div class="name">${item.name || '상품명 없음'}</div>
+        <div class="price">${total}원</div>
+        <div class="shipping">${ship}</div>
+        ${item.isDepartment ? '<div class="dept">백화점</div>' : ''}
+        ${item.url ? `<a href="${item.url}" target="_blank">상품 보기 →</a>` : ''}
+      </div>`;
+      }).join('')}
+    </div>
+
+    <div class="section-title">📋 전체 결과 (가격 낮은 순)</div>
+    <table>
+      <thead>
+        <tr><th>순위</th><th>사이트</th><th>상품명</th><th>가격</th><th>배송비</th><th>총비용</th><th>백화점</th><th>링크</th></tr>
+      </thead>
+      <tbody>
+        ${results.map((item, i) => {
+          const total = (item.price + item.shipping).toLocaleString();
+          const ship = item.shipping === 0 ? '<span class="free">무료</span>' : item.shipping.toLocaleString() + '원';
+          const isTop = i < 5;
+          return `
+        <tr class="${isTop ? 'top5-row' : ''}">
+          <td>${isTop ? '★ ' : ''}${i + 1}</td>
+          <td>${item.site}</td>
+          <td>${item.name || '상품명 없음'}</td>
+          <td class="price-cell">${item.price > 0 ? item.price.toLocaleString() + '원' : '확인필요'}</td>
+          <td>${ship}</td>
+          <td class="total-cell">${total}원</td>
+          <td>${item.isDepartment ? '<span class="dept-badge">백화점</span>' : '-'}</td>
+          <td>${item.url ? `<a class="link" href="${item.url}" target="_blank">보기</a>` : '-'}</td>
+        </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Price Scraper v1.0 · ${now.toISOString().slice(0, 10)}
+    </div>
+  </div>
+</body>
+</html>`;
+
+  fs.writeFileSync(htmlPath, html, 'utf-8');
+  console.log(`  📄 HTML 리포트: ${htmlPath}`);
+  return htmlPath;
+}
+
+/**
  * 결과를 JSON 파일로 저장
  */
 function saveResults(results, keyword) {
@@ -190,6 +306,10 @@ function saveResults(results, keyword) {
 
   fs.writeFileSync(filepath, JSON.stringify(output, null, 2), 'utf-8');
   console.log(`  💾 결과 저장 완료: ${filepath}`);
+
+  // HTML 리포트도 함께 생성
+  saveHtmlReport(results, keyword, filepath);
+
   return filepath;
 }
 
